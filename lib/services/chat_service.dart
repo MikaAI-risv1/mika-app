@@ -2,14 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ChatService {
-  final String _baseUrl = 'https://your-backend-url.com/chat';
+  final String _baseUrl;
+
+  ChatService() : _baseUrl = '${dotenv.env['API_URL']}/api/chat';
 
   Future<String> getChatResponse(String prompt) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/text'),
+        Uri.parse(_baseUrl),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -23,7 +26,6 @@ class ChatService {
         throw Exception('Failed to get AI response');
       }
     } catch (e) {
-      print('Error in AI Service: $e');
       return 'Sorry, I am having trouble responding right now.';
     }
   }
@@ -57,7 +59,6 @@ class ChatService {
         throw Exception('Failed to get AI response for image');
       }
     } catch (e) {
-      print('Error in AI Service with image: $e');
       return 'Sorry, I am having trouble processing your image right now.';
     }
   }
@@ -66,7 +67,6 @@ class ChatService {
     try {
       return file;
     } catch (e) {
-      print('Error compressing image: $e');
       return file;
     }
   }
