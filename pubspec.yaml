@@ -1,5 +1,5 @@
 name: mika_app
-description: "A new Flutter project."
+description: "Mika is my personal assistant and AI."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -37,6 +37,8 @@ dependencies:
   flutter_image_compress: ^2.3.0
   http_parser: ^4.0.0
   flutter_dotenv: ^5.2.1
+  permission_handler: ^11.0.0
+  flutter_launcher_icons: ^0.13.1
 
 
   # The following adds the Cupertino Icons font to your application.

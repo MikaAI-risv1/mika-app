@@ -5,8 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../providers/chat_provider.dart';
 import '../models/message.dart';
+import 'package:http/http.dart';
+import 'package:http_parser/http_parser.dart';
 
 class ChatScreen extends StatefulWidget {
+  const ChatScreen({Key? key}) : super(key: key);
+
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
@@ -17,12 +21,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final stt.SpeechToText _speechToText = stt.SpeechToText();
   final ImagePicker _imagePicker = ImagePicker();
   bool _isListening = false;
+  XFile? _selectedImage;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Mika',
           style: TextStyle(
             color: Colors.white,
@@ -32,7 +37,7 @@ class _ChatScreenState extends State<ChatScreen> {
         centerTitle: true,
         backgroundColor: Colors.black,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -65,9 +70,44 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
+            if (_selectedImage != null) _buildSelectedImagePreview(),
             _buildMessageInput(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedImagePreview() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(_selectedImage!.path),
+              height: 100,
+              width: 100,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedImage = null),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -77,8 +117,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       alignment: isUserMessage ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
@@ -99,11 +139,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   width: double.infinity,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
             ],
             Text(
               message.text,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
               ),
@@ -116,26 +156,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessageInput() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.camera_alt, color: Colors.white),
-            onPressed: _takePhoto,
+            icon: const Icon(Icons.attach_file, color: Colors.white),
+            onPressed: _showImageSourceDialog,
           ),
           Expanded(
             child: ConstrainedBox(
-              constraints: BoxConstraints(
+              constraints: const BoxConstraints(
                 maxHeight: 120,
               ),
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'Message Mika...',
-                  hintStyle: TextStyle(color: Colors.white54),
+                  hintText: _selectedImage != null
+                      ? 'Add a caption...'
+                      : 'Message Mika...',
+                  hintStyle: const TextStyle(color: Colors.white54),
                   filled: true,
                   fillColor: Colors.grey.shade900,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
                   ),
@@ -144,13 +186,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                style: TextStyle(color: Colors.white),
-                onSubmitted: _sendTextMessage,
+                style: const TextStyle(color: Colors.white),
+                onSubmitted: (_) => _sendMessage(),
                 maxLines: null,
               ),
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           IconButton(
             icon: Icon(
               _isListening ? Icons.mic : Icons.mic_none,
@@ -158,44 +200,95 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             onPressed: _toggleSpeechToText,
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           IconButton(
-            icon: Icon(Icons.send, color: Colors.white),
-            onPressed: () => _sendTextMessage(_messageController.text),
+            icon: const Icon(Icons.send, color: Colors.white),
+            onPressed: _sendMessage,
           ),
         ],
       ),
     );
   }
 
-  Future<void> _takePhoto() async {
+  void _showImageSourceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: Colors.grey.shade900,
+          ),
+          child: AlertDialog(
+            title: const Text(
+              'Select Image Source',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Colors.white),
+                  title: const Text(
+                    'Camera',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Colors.white),
+                  title: const Text(
+                    'Gallery',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? photo = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 70,
       );
 
       if (photo != null) {
-        final String caption = _messageController.text.trim();
-        Provider.of<ChatProvider>(context, listen: false)
-            .sendImageMessage(photo.path, caption);
-        _messageController.clear();
-
-        _scrollToBottom();
+        setState(() => _selectedImage = photo);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to capture photo')),
+        SnackBar(
+          content: Text(
+              'Failed to ${source == ImageSource.camera ? 'capture photo' : 'pick image'}'),
+        ),
       );
     }
   }
 
-  void _sendTextMessage(String text) {
-    if (text.trim().isNotEmpty) {
+  void _sendMessage() {
+    final String text = _messageController.text.trim();
+
+    if (_selectedImage != null) {
+      Provider.of<ChatProvider>(context, listen: false)
+          .sendImageMessage(_selectedImage!.path, text);
+      setState(() => _selectedImage = null);
+    } else if (text.isNotEmpty) {
       Provider.of<ChatProvider>(context, listen: false).sendMessage(text);
-      _messageController.clear();
-      _scrollToBottom();
     }
+
+    _messageController.clear();
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -203,7 +296,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -215,11 +308,13 @@ class _ChatScreenState extends State<ChatScreen> {
       bool available = await _speechToText.initialize();
       if (available) {
         setState(() => _isListening = true);
-        _speechToText.listen(onResult: (result) {
-          if (result.finalResult) {
-            _messageController.text = result.recognizedWords;
-          }
-        });
+        _speechToText.listen(
+          onResult: (result) {
+            if (result.finalResult) {
+              _messageController.text = result.recognizedWords;
+            }
+          },
+        );
       }
     } else {
       setState(() => _isListening = false);
