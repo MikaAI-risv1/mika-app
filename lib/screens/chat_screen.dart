@@ -219,30 +219,30 @@ class _ChatScreenState extends State<ChatScreen> {
             dialogBackgroundColor: Colors.grey.shade900,
           ),
           child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             title: const Text(
               'Select Image Source',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt, color: Colors.white),
-                  title: const Text(
-                    'Camera',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                _buildDialogOption(
+                  icon: Icons.camera_alt,
+                  text: 'Camera',
                   onTap: () {
                     Navigator.pop(context);
                     _pickImage(ImageSource.camera);
                   },
                 ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library, color: Colors.white),
-                  title: const Text(
-                    'Gallery',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                _buildDialogOption(
+                  icon: Icons.photo_library,
+                  text: 'Gallery',
                   onTap: () {
                     Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
@@ -253,6 +253,30 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDialogOption({
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ),
+      ),
+      tileColor: Colors.grey.shade800,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      hoverColor: Colors.purple.shade700.withOpacity(0.5),
     );
   }
 
